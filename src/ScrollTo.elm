@@ -1,15 +1,18 @@
 module ScrollTo exposing
-    ( Status, Msg, init, update, subscriptions
+    ( Status, Msg
+    , init, update, subscriptions
     , toPosition
     , withDelay, withDuration, withEasing
     )
 
-{-| A simple library that will scroll to a position in an animated way.
+{-|
+
+@docs Status, Msg
 
 
 # Setup
 
-@docs Status, Msg, init, update, subscriptions
+@docs init, update, subscriptions
 
 
 # Run the Scroll Animation
@@ -103,8 +106,9 @@ withDuration duration scroll =
             scroll
 
 
-{-| Add an easing function (elm-community/easing-functions) to your scroll
-command.
+{-| Add an easing function
+([elm-community/easing-functions](https://package.elm-lang.org/packages/elm-community/easing-functions/latest))
+to your scroll command.
 
     -- default: identity (linear)
     ScrollTo.withEasing Ease.inOutQuint
