@@ -81,7 +81,7 @@ subscriptions model =
 
 ```bash
 git clone https://github.com/simplystuart/elm-scroll-to.git
-cd elm-scroll-to
+cd elm-scroll-to/examples
 elm reactor
-open http://localhost:8000/examples
+open http://localhost:8000
 ```
