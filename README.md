@@ -59,7 +59,7 @@ update msg model =
         ClickScrollToTop ->
             ( model
             , Cmd.map ScrollMsg <|
-                ScrollTo.toPosition { x = 0, y = 0 } model.scroll
+                ScrollTo.toPosition { x = 0, y = 0 }
             )
 
         ScrollMsg scrollMsg ->

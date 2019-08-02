@@ -48,8 +48,7 @@ update msg model =
     case msg of
         ClickScrollToTop ->
             ( model
-            , Cmd.map ScrollMsg <|
-                ScrollTo.toPosition { x = 0, y = 0 } model.scroll
+            , Cmd.map ScrollMsg <| ScrollTo.toPosition { x = 0, y = 0 }
             )
 
         ScrollMsg scrollMsg ->

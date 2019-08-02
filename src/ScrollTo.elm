@@ -125,20 +125,20 @@ withEasing easing scroll =
 {-| Scroll to a position offset on the screen.
 
     -- to the top!
-    ScrollTo.toPosition { x = 0, y = 0 } model.scrollToStatus
+    ScrollTo.toPosition { x = 0, y = 0 }
 
     -- to x offset
-    ScrollTo.toPosition { x = 1080, y = 0 } model.scrollToStatus
+    ScrollTo.toPosition { x = 1080, y = 0 }
 
     -- to y offset
-    ScrollTo.toPosition { x = 0, y = 540 } model.scrollToStatus
+    ScrollTo.toPosition { x = 0, y = 540 }
 
     -- to x,y offset
-    ScrollTo.toPosition { x = 1080, y = 540 } model.scrollToStatus
+    ScrollTo.toPosition { x = 1080, y = 540 }
 
 -}
-toPosition : Position -> Status -> Cmd Msg
-toPosition to scroll =
+toPosition : Position -> Cmd Msg
+toPosition to =
     Task.perform (GotViewport to) Browser.Dom.getViewport
 
 
