@@ -40,7 +40,7 @@ scroll command is issued.
 
 -}
 type Status
-    = Waiting { animation : Animation.Animation }
+    = Waiting Animation.Animation
     | Animating
         { scene : Dimensions
         , to : Position
@@ -69,7 +69,7 @@ type alias Position =
 -}
 init : Status
 init =
-    Waiting { animation = Animation.init }
+    Waiting Animation.init
 
 
 {-| Add a delay (in ms) to your scroll command.
@@ -81,9 +81,8 @@ init =
 withDelay : Float -> Status -> Status
 withDelay delay scroll =
     case scroll of
-        Waiting ({ animation } as data) ->
-            Waiting <|
-                { data | animation = Animation.withDelay delay animation }
+        Waiting animation ->
+            Waiting <| Animation.withDelay delay animation
 
         _ ->
             scroll
@@ -98,9 +97,8 @@ withDelay delay scroll =
 withDuration : Float -> Status -> Status
 withDuration duration scroll =
     case scroll of
-        Waiting ({ animation } as data) ->
-            Waiting <|
-                { data | animation = Animation.withDuration duration animation }
+        Waiting animation ->
+            Waiting <| Animation.withDuration duration animation
 
         _ ->
             scroll
@@ -117,9 +115,8 @@ to your scroll command.
 withEasing : (Float -> Float) -> Status -> Status
 withEasing easing scroll =
     case scroll of
-        Waiting ({ animation } as data) ->
-            Waiting <|
-                { data | animation = Animation.withEasing easing animation }
+        Waiting animation ->
+            Waiting <| Animation.withEasing easing animation
 
         _ ->
             scroll
@@ -168,7 +165,7 @@ update msg scroll =
     case msg of
         GotViewport to viewport ->
             case scroll of
-                Waiting { animation } ->
+                Waiting animation ->
                     ( scroll
                     , Animation.wait animation <| StartAnimation to viewport
                     )
@@ -180,7 +177,7 @@ update msg scroll =
 
         StartAnimation to { scene, viewport } ->
             case scroll of
-                Waiting { animation } ->
+                Waiting animation ->
                     ( Animating
                         { scene = { height = scene.height, width = scene.width }
                         , to = to
@@ -213,7 +210,7 @@ update msg scroll =
                             Animation.step time animation
                     in
                     if Animation.isFinished animation time then
-                        ( Waiting { animation = animation }
+                        ( Waiting animation
                         , Task.perform (\_ -> NoOp) <|
                             Browser.Dom.setViewport to.x to.y
                         )
