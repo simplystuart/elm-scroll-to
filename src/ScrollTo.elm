@@ -1,6 +1,6 @@
 module ScrollTo exposing
     ( Status, Msg
-    , init, update, subscriptions
+    , init, initFor, update, subscriptions
     , toPosition
     , withDelay, withDuration, withEasing
     )
@@ -12,7 +12,7 @@ module ScrollTo exposing
 
 # Setup
 
-@docs init, update, subscriptions
+@docs init, initFor, update, subscriptions
 
 
 # Run the Scroll Animation
@@ -40,13 +40,17 @@ scroll command is issued.
 
 -}
 type Status
-    = Waiting Animation.Animation
+    = Waiting 
+        { animation : Animation.Animation
+        , target : Target
+        }
     | Animating
         { scene : Dimensions
         , to : Position
         , from : Position
         , animation : Animation.Animation
         , elapsed : Float
+        , target : Target
         }
 
 
@@ -62,6 +66,11 @@ type alias Position =
     }
 
 
+type Target
+    = Window
+    | Element String
+
+
 {-| Setup a basic scroll command.
 
     ScrollTo.init
@@ -69,7 +78,24 @@ type alias Position =
 -}
 init : Status
 init =
-    Waiting Animation.init
+    Waiting 
+        { animation = Animation.init
+        , target = Window
+        }
+
+
+{-| Setup a scroll command for a specific scrollable element 
+    (not the whole window)
+
+    ScrollTo.initFor "element-id"
+
+-}
+initFor : String -> Status
+initFor id =
+    Waiting
+        { animation = Animation.init
+        , target = Element id
+        }
 
 
 {-| Add a delay (in ms) to your scroll command.
@@ -81,8 +107,9 @@ init =
 withDelay : Float -> Status -> Status
 withDelay delay scroll =
     case scroll of
-        Waiting animation ->
-            Waiting <| Animation.withDelay delay animation
+        Waiting ({ animation } as data) ->
+            Waiting <| 
+                { data | animation = Animation.withDelay delay animation }
 
         _ ->
             scroll
@@ -97,8 +124,9 @@ withDelay delay scroll =
 withDuration : Float -> Status -> Status
 withDuration duration scroll =
     case scroll of
-        Waiting animation ->
-            Waiting <| Animation.withDuration duration animation
+        Waiting ({ animation } as data) ->
+            Waiting <| 
+                { data | animation = Animation.withDuration duration animation }
 
         _ ->
             scroll
@@ -115,8 +143,9 @@ to your scroll command.
 withEasing : (Float -> Float) -> Status -> Status
 withEasing easing scroll =
     case scroll of
-        Waiting animation ->
-            Waiting <| Animation.withEasing easing animation
+        Waiting ({ animation } as data) ->
+            Waiting <| 
+                { data | animation = Animation.withEasing easing animation }
 
         _ ->
             scroll
@@ -137,9 +166,25 @@ withEasing easing scroll =
     ScrollTo.toPosition { x = 1080, y = 540 }
 
 -}
-toPosition : Position -> Cmd Msg
-toPosition to =
-    Task.perform (GotViewport to) Browser.Dom.getViewport
+toPosition : Position -> Status -> Cmd Msg
+toPosition to scroll =
+    let 
+        tgt = {-for either whole window of scrollable elment-}
+            case scroll of
+                Waiting { target } ->
+                    target
+                Animating { target } ->
+                    target
+    in
+        let 
+            task = 
+                case tgt of 
+                    Window ->
+                        Browser.Dom.getViewport
+                    Element id ->
+                        Browser.Dom.getViewportOf id
+        in
+            Task.attempt (GotViewport to) task
 
 
 {-| Track scroll messages.
@@ -149,7 +194,7 @@ toPosition to =
 
 -}
 type Msg
-    = GotViewport Position Browser.Dom.Viewport
+    = GotViewport Position ( Result Browser.Dom.Error Browser.Dom.Viewport )
     | StartAnimation Position Browser.Dom.Viewport
     | Step Float
     | NoOp
@@ -163,62 +208,75 @@ type Msg
 update : Msg -> Status -> ( Status, Cmd Msg )
 update msg scroll =
     case msg of
-        GotViewport to viewport ->
-            case scroll of
-                Waiting animation ->
-                    ( scroll
-                    , Animation.wait animation <| StartAnimation to viewport
-                    )
+        GotViewport to result ->
+            case result of
+                Ok viewport ->
+                    case scroll of
+                        Waiting { animation } ->
+                            ( scroll
+                            , Animation.wait animation <| StartAnimation to viewport
+                            )
 
-                Animating { animation } ->
-                    ( scroll
-                    , Animation.wait animation <| StartAnimation to viewport
-                    )
+                        Animating { animation } ->
+                            ( scroll
+                            , Animation.wait animation <| StartAnimation to viewport
+                            )
+                Err _ ->
+                    ( scroll, Cmd.none)
 
         StartAnimation to { scene, viewport } ->
             case scroll of
-                Waiting animation ->
+                Waiting { animation, target } ->
                     ( Animating
                         { scene = { height = scene.height, width = scene.width }
                         , to = to
                         , from = { x = viewport.x, y = viewport.y }
                         , animation = animation
                         , elapsed = 0
+                        , target = target
                         }
                     , Cmd.none
                     )
 
-                Animating { animation } ->
+                Animating { animation, target } ->
                     ( Animating
                         { scene = { height = scene.height, width = scene.width }
                         , to = to
                         , from = { x = viewport.x, y = viewport.y }
                         , animation = animation
                         , elapsed = 0
+                        , target = target
                         }
                     , Cmd.none
                     )
 
         Step delta ->
             case scroll of
-                Animating ({ to, from, animation, elapsed, scene } as data) ->
+                Animating ({ to, from, animation, elapsed, scene, target } as data) ->
                     let
                         time =
                             delta + elapsed
 
                         step =
                             Animation.step time animation
+ 
+                        task = {-for either window, or scrollable element-}
+                            case target of
+                                Window ->
+                                    Browser.Dom.setViewport
+                                Element id ->
+                                    Browser.Dom.setViewportOf id
                     in
                     if Animation.isFinished animation time then
-                        ( Waiting animation
-                        , Task.perform (\_ -> NoOp) <|
-                            Browser.Dom.setViewport to.x to.y
+                        ( Waiting { animation = animation, target = target }
+                        , Task.attempt (\_ -> NoOp) <|
+                            task to.x to.y
                         )
 
                     else
                         ( Animating { data | elapsed = time }
-                        , Task.perform (\_ -> NoOp) <|
-                            Browser.Dom.setViewport
+                        , Task.attempt (\_ -> NoOp) <|
+                            task
                                 (clamp 0
                                     scene.width
                                     (from.x + (to.x - from.x) * step)
